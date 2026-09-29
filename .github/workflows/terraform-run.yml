@@ -1,4 +1,5 @@
 # Reusable job: init -> plan -> (optionally) apply against one environment.
+# With destroy: true it plans and applies a destroy instead.
 name: terraform-run
 
 on:
@@ -10,6 +11,9 @@ on:
       apply:
         type: boolean
         default: false
+      destroy:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,7 +21,7 @@ permissions:
 
 jobs:
   terraform:
-    name: ${{ inputs.apply && 'apply' || 'plan' }} (${{ inputs.environment }})
+    name: ${{ inputs.destroy && 'destroy' || (inputs.apply && 'apply' || 'plan') }} (${{ inputs.environment }})
     runs-on: ubuntu-latest
     # Binds the job to the GitHub Environment: scopes secrets and enforces
     # protection rules (required reviewers on prod).
@@ -32,6 +36,7 @@ jobs:
       REDPANDA_CLIENT_SECRET: ${{ secrets.REDPANDA_CLIENT_SECRET }}
       TF_VAR_app_user_password: ${{ secrets.APP_USER_PASSWORD }}
       TF_VAR_cluster_id: ${{ vars.REDPANDA_CLUSTER_ID }} # environment-scoped variable
+      VAR_FILE: envs/${{ inputs.environment }}.tfvars
     steps:
       - uses: actions/checkout@v7
 
@@ -52,18 +57,31 @@ jobs:
           -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
           -backend-config="region=${{ vars.AWS_REGION }}"
 
+      # allow_deletion is read from state at destroy time, so it must be flipped
+      # to true in state first. Otherwise protected resources are only dropped
+      # from state and left on the cluster. Targets only resources already in
+      # state, so nothing new is created.
+      - name: Lift deletion protection
+        if: inputs.destroy
+        run: |
+          mapfile -t targets < <(terraform state list | grep -E '^redpanda_(topic|user|role|acl)\.' | sed 's/^/-target=/')
+          if [ ${#targets[@]} -eq 0 ]; then echo "Nothing in state."; exit 0; fi
+          terraform apply -auto-approve -var-file="$VAR_FILE" -var allow_deletion=true "${targets[@]}"
+
       - name: Plan
-        run: terraform plan -var-file=envs/${{ inputs.environment }}.tfvars -out=tfplan
+        run: >-
+          terraform plan -var-file="$VAR_FILE" -out=tfplan
+          ${{ inputs.destroy && '-destroy -var allow_deletion=true' || '' }}
 
       - name: Plan summary
         run: |
           {
-            echo "### Terraform plan: \`${{ inputs.environment }}\`"
+            echo "### Terraform ${{ inputs.destroy && 'destroy ' || '' }}plan: \`${{ inputs.environment }}\`"
             echo '```'
             terraform show -no-color tfplan
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply
-        if: inputs.apply
+        if: inputs.apply || inputs.destroy
         run: terraform apply tfplan

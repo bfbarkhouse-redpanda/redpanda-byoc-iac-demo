@@ -1,0 +1,42 @@
+# Manual teardown of the Redpanda resources in one environment.
+# prod still requires approval via the "prod" GitHub Environment.
+name: redpanda-iac-destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to destroy
+        type: choice
+        options: [dev, prod]
+        required: true
+      confirm:
+        description: Type the environment name again to confirm
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  confirm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "$ENVIRONMENT" ]; then
+            echo "::error::Confirmation '$CONFIRM' does not match environment '$ENVIRONMENT'."
+            exit 1
+          fi
+
+  destroy:
+    needs: confirm
+    uses: ./.github/workflows/terraform-run.yml
+    with:
+      environment: ${{ inputs.environment }}
+      destroy: true
+    secrets: inherit

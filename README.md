@@ -20,7 +20,8 @@ envs/<env>.tfvars                                 # per-env differences (partiti
 envs/<env>.s3.tfbackend                           # per-env state key in S3 (bucket/region injected by CI)
 bootstrap/                                        # one-time: S3 state bucket + GitHub OIDC IAM role
 .github/workflows/pipeline.yml                    # orchestration
-.github/workflows/terraform-run.yml               # reusable init/plan/apply job
+.github/workflows/terraform-run.yml               # reusable init/plan/apply/destroy job
+.github/workflows/destroy.yml                     # manual teardown (prod still gated)
 ```
 
 ## Pipeline
@@ -35,6 +36,7 @@ merge to main ──► checks ──► apply dev (auto) ──► ⏸ approval
 - **dev**: applies automatically once checks pass on `main`.
 - **prod**: GitHub Environment `prod` requires reviewer approval. The job plans and applies only after approval.
 - Credentials are scoped per GitHub Environment. The dev job can't read prod secrets.
+- **Destroy**: run *redpanda-iac-destroy* manually (Actions → redpanda-iac-destroy → Run workflow, or `gh workflow run destroy.yml -f environment=dev -f confirm=dev`). You must type the environment name to confirm, and prod waits for the same approval. The workflow lifts deletion protection on resources in state before destroying, so protected prod resources are actually deleted rather than just dropped from state.
 - The user password uses a write-only argument plus an ephemeral variable, so it is never stored in state or plan files.
 
 ## Setup
