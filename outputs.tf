@@ -1,3 +1,4 @@
+/*
 output "environment" {
   value = var.environment
 }
@@ -17,3 +18,4 @@ output "user" {
 output "role" {
   value = redpanda_role.demo.name
 }
+*/
