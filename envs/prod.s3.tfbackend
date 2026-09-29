@@ -1,0 +1,5 @@
+# bucket and region are passed at init time (GitHub variables TF_STATE_BUCKET / AWS_REGION)
+# so no account-specific values are committed to this public repo.
+key          = "redpanda/prod/terraform.tfstate"
+encrypt      = true
+use_lockfile = true

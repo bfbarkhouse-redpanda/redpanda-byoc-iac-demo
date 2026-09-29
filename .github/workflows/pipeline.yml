@@ -1,0 +1,57 @@
+# PR:            checks -> plan dev
+# Push to main:  checks -> apply dev (automatic) -> apply prod (manual approval)
+name: redpanda-iac
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  checks:
+    name: checks (fmt, validate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - name: Format
+        run: terraform fmt -check -recursive -diff
+      - name: Init (no backend)
+        run: terraform init -backend=false
+      - name: Validate
+        run: terraform validate
+
+  plan-dev:
+    if: github.event_name == 'pull_request'
+    needs: checks
+    uses: ./.github/workflows/terraform-run.yml
+    with:
+      environment: dev
+    secrets: inherit
+
+  deploy-dev:
+    if: github.event_name != 'pull_request'
+    needs: checks
+    uses: ./.github/workflows/terraform-run.yml
+    with:
+      environment: dev
+      apply: true
+    secrets: inherit
+
+  # Paused until a required reviewer on the "prod" GitHub Environment approves.
+  deploy-prod:
+    if: github.event_name != 'pull_request'
+    needs: deploy-dev
+    uses: ./.github/workflows/terraform-run.yml
+    with:
+      environment: prod
+      apply: true
+    secrets: inherit
