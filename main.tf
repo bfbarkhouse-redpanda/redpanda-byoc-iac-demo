@@ -1,3 +1,4 @@
+/*
 # Look up the existing BYOC cluster so every resource targets its data plane API.
 data "redpanda_cluster" "this" {
   id = var.cluster_id
@@ -69,3 +70,4 @@ resource "redpanda_role_assignment" "demo" {
   principal       = "User:${redpanda_user.demo.name}"
   cluster_api_url = local.cluster_api_url
 }
+*/
