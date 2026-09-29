@@ -33,14 +33,14 @@ jobs:
       TF_VAR_app_user_password: ${{ secrets.APP_USER_PASSWORD }}
       TF_VAR_cluster_id: ${{ vars.REDPANDA_CLUSTER_ID }} # environment-scoped variable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.12.2
           terraform_wrapper: false
