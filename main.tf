@@ -7,7 +7,7 @@ locals {
   cluster_api_url = data.redpanda_cluster.this.cluster_api_url
 
   # Every Redpanda resource name carries this prefix.
-  name_prefix = "mskcc-demo2"
+  name_prefix = "mskcc-demo"
 
   topic_name = "${local.name_prefix}-topic"
   user_name  = "${local.name_prefix}-user"
