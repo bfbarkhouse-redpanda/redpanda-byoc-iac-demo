@@ -24,10 +24,14 @@ variable "state_bucket_name" {
   type        = string
 }
 
-variable "github_repo" {
-  description = "owner/repo allowed to assume the CI role."
+variable "github_oidc_sub_prefix" {
+  description = <<-EOT
+    OIDC "sub" claim prefix of the repo allowed to assume the CI role. GitHub uses the
+    immutable form (owner@id/repo@id), which a re-created repo of the same name can't match.
+    Get it with: gh api repos/OWNER/REPO/actions/oidc/customization/sub --jq .sub_claim_prefix
+  EOT
   type        = string
-  default     = "bfbarkhouse-redpanda/redpanda-byoc-iac-demo"
+  default     = "repo:bfbarkhouse-redpanda@220233388/redpanda-byoc-iac-demo@1396327830"
 }
 
 variable "create_oidc_provider" {
@@ -93,11 +97,11 @@ data "aws_iam_policy_document" "trust" {
     }
     # Only jobs bound to the dev or prod GitHub Environment can assume the role.
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_repo}:environment:dev",
-        "repo:${var.github_repo}:environment:prod",
+        "${var.github_oidc_sub_prefix}:environment:dev",
+        "${var.github_oidc_sub_prefix}:environment:prod",
       ]
     }
   }

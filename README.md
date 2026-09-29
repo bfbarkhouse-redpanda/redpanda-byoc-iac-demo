@@ -44,7 +44,7 @@ Create a service account for **each** environment in Redpanda Cloud (Organizatio
 ```bash
 cd bootstrap
 terraform init
-terraform apply -var state_bucket_name=<unique-bucket-name>   # add -var create_oidc_provider=false if the account already has one
+terraform apply -var region=us-west-2 -var state_bucket_name=<unique-bucket-name>   # add -var create_oidc_provider=false if the account already has one; set github_oidc_sub_prefix for your repo
 ```
 Outputs `state_bucket` and `ci_role_arn`.
 
