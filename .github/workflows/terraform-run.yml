@@ -57,21 +57,28 @@ jobs:
           -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
           -backend-config="region=${{ vars.AWS_REGION }}"
 
-      # allow_deletion is read from state at destroy time, so it must be flipped
-      # to true in state first. Otherwise protected resources are only dropped
-      # from state and left on the cluster. Targets only resources already in
-      # state, so nothing new is created.
+      # The provider reads allow_deletion from state at destroy time. Flip it to
+      # true directly in state: applying the config instead would also apply any
+      # other pending changes (e.g. a rename forcing replacement), which fails
+      # on protected resources. Destroy then removes exactly what is in state.
       - name: Lift deletion protection
         if: inputs.destroy
         run: |
-          mapfile -t targets < <(terraform state list | grep -E '^redpanda_(topic|user|role|acl)\.' | sed 's/^/-target=/')
-          if [ ${#targets[@]} -eq 0 ]; then echo "Nothing in state."; exit 0; fi
-          terraform apply -auto-approve -var-file="$VAR_FILE" -var allow_deletion=true "${targets[@]}"
+          terraform state pull > state.json
+          jq '(.resources[]
+                | select(.mode == "managed" and (.type | test("^redpanda_(topic|user|role|acl)$")))
+                | .instances[].attributes.allow_deletion) |= true
+              | .serial += 1' state.json > lifted.json
+          if [ "$(jq -S 'del(.serial)' state.json)" = "$(jq -S 'del(.serial)' lifted.json)" ]; then
+            echo "No protected resources in state."
+          else
+            terraform state push lifted.json
+            jq -r '.resources[] | select(.mode == "managed") | .type + "." + .name + ": allow_deletion=" + ([.instances[].attributes.allow_deletion] | map(tostring) | join(","))' lifted.json
+          fi
+          rm -f state.json lifted.json
 
       - name: Plan
-        run: >-
-          terraform plan -var-file="$VAR_FILE" -out=tfplan
-          ${{ inputs.destroy && '-destroy -var allow_deletion=true' || '' }}
+        run: terraform plan -var-file="$VAR_FILE" -out=tfplan ${{ inputs.destroy && '-destroy' || '' }}
 
       - name: Plan summary
         run: |
