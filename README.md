@@ -4,11 +4,13 @@ Manages Redpanda data plane resources on existing BYOC clusters with Terraform, 
 
 | Resource | Terraform | Name |
 |---|---|---|
-| Topic | `redpanda_topic.orders` | `orders` |
-| User (SCRAM-SHA-256) | `redpanda_user.orders_app` | `orders-app` |
-| Role | `redpanda_role.orders_producer` | `orders-producer` |
-| ACLs (DESCRIBE/READ/WRITE on topic, bound to the role) | `redpanda_acl.orders_producer_topic` | `RedpandaRole:orders-producer` |
-| Role binding | `redpanda_role_assignment.orders_app` | `User:orders-app` → `orders-producer` |
+| Topic | `redpanda_topic.demo` | `mskcc-demo-topic` |
+| User (SCRAM-SHA-256) | `redpanda_user.demo` | `mskcc-demo-user` |
+| Role | `redpanda_role.demo` | `mskcc-demo-role` |
+| ACLs (DESCRIBE/READ/WRITE on topic, bound to the role) | `redpanda_acl.demo_role_topic` | `RedpandaRole:mskcc-demo-role` |
+| Role binding | `redpanda_role_assignment.demo` | `User:mskcc-demo-user` → `mskcc-demo-role` |
+
+All names come from `local.name_prefix` in `main.tf`.
 
 ## Layout
 
@@ -86,16 +88,16 @@ done
    ```bash
    git checkout -b retention-3d
    # main.tf: "retention.ms" = "259200000"
-   git commit -am "Reduce orders retention to 3 days" && git push -u origin retention-3d
+   git commit -am "Reduce demo topic retention to 3 days" && git push -u origin retention-3d
    gh pr create --fill
    ```
    The PR runs checks and a dev plan (visible in the run summary). Merge it: dev updates automatically and prod waits for approval.
 3. **Show a failed gate**: push a mis-formatted `.tf` file in a PR. `checks` fails, and nothing is planned or applied.
 4. **Verify** with rpk against each cluster:
    ```bash
-   rpk topic describe orders -c
-   rpk security role describe orders-producer
-   rpk security acl list --allow-role orders-producer
+   rpk topic describe mskcc-demo-topic -c
+   rpk security role describe mskcc-demo-role
+   rpk security acl list --allow-role mskcc-demo-role
    ```
 5. **Rotate the password**: change the `APP_USER_PASSWORD` secret and bump `app_user_password_version`.
 
